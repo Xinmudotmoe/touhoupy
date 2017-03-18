@@ -1,17 +1,23 @@
-import newresource
-import pyglet
-player_danmaku_batch=[]
+# coding=utf-8
+import group
+from group import ISDEAD, DANMUAKUSPRITE, X, Y, ROTATION, DIRECTION, TMP, TIME, FUNC
+import time as _time
 
-from pyglet.gl import GL_QUADS
-class Danmuku(pyglet.sprite.Sprite):
-    def __init__(self,danmuku,x,y):
-        pyglet.sprite.Sprite.__init__(self,newresource.resource['PlayerDanmaku']['CirnoDanmaku'][danmuku],x=x,y=y)
-        self._set_batch(batch=player_danmaku_batch)
-        self.rotation=90
-    def draw(self):
-        self._set_y+=10
-        self._group.set_state_recursive()
-        self._vertex_list.draw(GL_QUADS)
-        self._group.unset_state_recursive()
-def new_Player_Danmaku(x,y):
-    Danmuku('1',x=x,y=y+16)
+
+def add_plDanmuku(danmukusprite, x, y, rotation, func):
+    for i in group.plDanmakuBatch:
+        if i[0] == 1:
+            i[ISDEAD] = 0
+            i[DANMUAKUSPRITE] = danmukusprite
+            i[X] = x
+            i[Y] = y
+            i[ROTATION] = rotation
+            i[TIME] = _time.clock()
+            i[FUNC] = func
+            return
+
+
+def plDanmakuplus(lists):
+    lists[Y] += (_time.clock() - lists[7]) * 600
+    lists[TIME] = _time.clock()
+

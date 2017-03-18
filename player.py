@@ -1,9 +1,8 @@
-import resource
-import pyglet
+# coding=utf-8
 from pyglet.window import key
-import newresource
+import resource
 import Danmaku
-
+import util
 
 
 class player:
@@ -12,35 +11,24 @@ class player:
     id = 0
     state = 0
     keys = dict(left=False, right=False, up=False, down=False)
-    sprite=None
+    sprite = None
     shift = bool(0)
-    key_handler = key.KeyStateHandler()
+    key_handler = util.key_handler
 
-    def __init__(self,playername):
+    def __init__(self, playername):
         self.x = 320
         self.y = 240
-        self.__event_z=bool(0)
+        self.__event_z = bool(0)
         self.id = 0
         self.state = 0
         self.keys = dict(left=False, right=False, up=False, down=False)
-        self.sprite = resource.sprite
-        self.shift = 0
-        self.__shiftid=0
-        self.key_handler = key.KeyStateHandler()
-        self.shiftsprite = [pyglet.sprite.Sprite(resource.shift), pyglet.sprite.Sprite(resource.shift)]
-        self.sprite=newresource.playerimagelistospritedict(playername)
-        self.___id=0
-    def update_x_y(self):
-        for i in self.sprite.keys():
-            for j in self.sprite[i]:
-                j._set_x(self.x)
-                j._set_y(self.y)
-        for i in self.shiftsprite:
-            i._set_x(self.x)
-            i._set_y(self.y)
+        self.key_handler = util.key_handler
+        self.sprite = resource.playerimagelistospritedict(playername)
+        self.drawsprite = self.sprite["stand"][0]
+        self.__cooling = 0
 
     def draw(self):
-        self.update_x_y()
+        self.update()
         tmp = None
         if self.state == 0:
             tmp = self.sprite["stand"]
@@ -48,7 +36,7 @@ class player:
             tmp = self.sprite["left"]
         elif self.state == 2:
             tmp = self.sprite["right"]
-        tmp[self.id].draw()
+        tmp[self.id].arg_draw(self.x, self.y)
 
     def update(self):
         if self.state:
@@ -62,32 +50,24 @@ class player:
             else:
                 self.id += 1
 
-    def keyupdata(self, symbol=None, modifiers=None):
-        keyer = dict(left=False, right=False, up=False, down=False,z=False)
-        if self.___id!=0:
-            self.___id-=1
+    def keyupdata(self, dt):
+        keyer = dict(left=False, right=False, up=False, down=False, z=False)
+
+        self.__cooling += dt
 
         if self.key_handler[key.Z]:
-            if self.___id == 0:
-                self.___id=8
-                #print
-                danmu=pyglet.sprite.Sprite(newresource.resource['PlayerDanmaku']['CirnoDanmaku']['1'],
-                                                                     x=self.x, y=self.y+16)
-                danmu.rotation=90
-                Danmaku.player_danmaku_batch.append(danmu)
-                danmu=pyglet.sprite.Sprite(newresource.resource['PlayerDanmaku']['CirnoDanmaku']['1'],
-                                                                     x=self.x+16, y=self.y+16)
-                danmu.rotation=90
-                Danmaku.player_danmaku_batch.append(danmu)
+            if self.__cooling > 0.13:
+                self.__cooling = 0
 
-            #Danmaku.Danmuku('1',self.x,self.y+16)
+                Danmaku.add_plDanmuku(resource.resource['PlayerDanmaku']['CirnoDanmaku']['1'],
+                                      self.x, self.y + 16, 90.0, Danmaku.plDanmakuplus)
+                Danmaku.add_plDanmuku(resource.resource['PlayerDanmaku']['CirnoDanmaku']['1'],
+                                      self.x + 16, self.y + 16, 90.0, Danmaku.plDanmakuplus)
+
         if self.key_handler[key.LSHIFT]:
-            self.shift = 1
-            dx = 1
+            dx = 60 * dt
         else:
-            self.shift = 0
-            self.__shiftid = 0
-            dx = 5
+            dx = 300 * dt
         if self.key_handler[key.UP]:
             keyer['up'] = True
             self.change_y(dx)
@@ -106,39 +86,23 @@ class player:
                 if i == 'up' or i == 'down':
                     pass
                 else:
-                    if keyer[i] == True:
+                    if keyer[i]:
                         if i == 'left':
                             self.id = 0
-                        if i == 'right' and keyer[i] == True:
+                        if i == 'right' and keyer[i]:
                             self.id = 0
-                    elif keyer[i] == False:
+                    elif not keyer[i]:
                         self.id = 0
         self.state = 0
-        if keyer["right"]==True and keyer["left"]==True:
+        if keyer["right"] and keyer["left"]:
             return
         if keyer["left"]:
-            self.state=1
+            self.state = 1
         if keyer['right']:
-            self.state=2
+            self.state = 2
 
-
-    def shiftdraw(self):
-        if self.shift:
-            self.shiftsprite[0].rotation += 2.0
-            self.shiftsprite[1].rotation -= 2.0
-            if self.__shiftid==0:
-                self.__shiftid=1
-                self.shiftsprite[0].rotation = 0
-                self.shiftsprite[1].rotation = 0
-            self.shiftsprite[0].draw()
-            self.shiftsprite[1].draw()
-    def event_z(self):
-        pass
-    def get_x(self):
-        return self.x
-
-    def get_y(self):
-        return self.y
+    def get_position(self):
+        return self.x, self.y
 
     def change_x(self, ints):
         if ints > 0:
@@ -164,17 +128,26 @@ class player:
             else:
                 self.y += ints
 
-    def get_id(self):
-        return self.id
 
-    def get_state(self):
-        return self.state
+play = player('Reimu')
 
-    def get_keys(self):
-        return self.keys
 
-    def get_sprite(self):
-        return self.sprite
+class shift_sprite:
+    def __init__(self):
+        self.__shiftid = 0
+        self.sprite = resource.resource['PlayerDanmaku']['CirnoDanmaku']['TEMPconetama2']
+        self.rotation = 0.0
 
-    def get_key_handler(self):
-        return self.key_handler
+    def draw(self, x, y):
+        if util.key_handler[key.LSHIFT]:
+            if self.__shiftid == 0:
+                self.__shiftid = 1
+                self.rotation = 0
+            for i in range(0, 2):
+                self.rotation += 2.0
+                self.sprite.arg_draw(x, y, self.rotation if i == 1 else -self.rotation)
+        else:
+            self.__shiftid = 0
+
+
+shift = shift_sprite()
